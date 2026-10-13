@@ -4,6 +4,8 @@
 
 Every company has an idea of what "great" looks like. Usually it lives in a few people's heads and drifts without anyone noticing. `the-employee` turns your ideal employee into an agent you can talk to, one that is **learned, not written** from each HR decision you make.
 
+https://github.com/user-attachments/assets/bdcec6a4-3c4b-4f95-a0a8-2c6dfcace47a
+
 It can learn from written reviews from interviewers or AI-summaries of interviews (imagine integrations with tools like Kula AI, etc). As it is git-native in nature, you can do fun stuff like seeing what your ideal employee looked like before and after hiring Alice.
 
 This is a fully Git-native agent, built on [GitAgent](https://github.com/open-gitagent/gitagent), the reference runtime of the [Open Git Agent Protocol](https://github.com/open-gitagent/opengap).
