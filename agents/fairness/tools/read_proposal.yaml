@@ -1,0 +1,17 @@
+name: read_proposal
+description: >-
+  List every proposed change for one source: each commit's id, the trait it
+  touches, the rationale, the evidence quotes, the diff to the ideal, and any
+  review already recorded.
+input_schema:
+  type: object
+  properties:
+    source_id:
+      type: string
+      description: Id of the source whose proposal to review.
+  required: [source_id]
+implementation:
+  script: read_proposal.mjs
+  runtime: node
+annotations:
+  read_only: true

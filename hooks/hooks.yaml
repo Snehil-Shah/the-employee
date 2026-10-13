@@ -1,0 +1,4 @@
+hooks:
+  pre_tool_use:
+    - script: guard.sh
+      description: Allow only the tools listed in hooks/allowed-tools

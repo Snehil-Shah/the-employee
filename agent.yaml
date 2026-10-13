@@ -1,0 +1,84 @@
+spec_version: "0.1.0"
+name: the-employee
+version: 0.1.0
+description: >-
+  The ideal employee at this company: a living, versioned definition that is
+  curated from interviewers' reviews and exit notes, and changed only through
+  reviewed proposals.
+license: MIT
+tags: [people-ops, hiring, culture]
+
+model:
+  preferred: anthropic:claude-sonnet-4-5-20250929
+  fallback: []
+  constraints:
+    temperature: 0.4
+
+# The ideal is a definition you talk to, not a worker. Its only tool reads
+# its own trait files; hooks/hooks.yaml blocks anything else.
+tools: [read_trait]
+
+# The agents that change the ideal. Each lives in agents/<name>/ with its own
+# manifest, tools and hooks. They are run by the host (the workbench, or
+# `gitagent --dir agents/<name>`), never delegated to by the ideal itself.
+agents:
+  curator:
+    description: >-
+      Reads one source (the interviewers' reviews of a hired or rejected
+      candidate, or exit notes) and proposes changes on a proposal branch.
+    delegation:
+      mode: explicit
+  fairness:
+    description: >-
+      Reviews each proposed change for demographic proxies and attaches its
+      verdict to the commit as a git note.
+    delegation:
+      mode: explicit
+
+delegation:
+  mode: explicit
+
+runtime:
+  max_turns: 8
+
+compliance:
+  # Shaping how a company hires is an employment use of AI (high-risk under
+  # the EU AI Act, Annex III), so the defaults are the strict ones.
+  risk_tier: high
+  supervision:
+    human_in_the_loop: always
+    kill_switch: true
+  recordkeeping:
+    audit_logging: true
+    immutable: true
+  data_governance:
+    pii_handling: redact
+    data_classification: confidential
+    bias_testing: true
+
+  # Maker/checker: the agent that drafts a change never reviews it. Approval
+  # stays with a human (human_in_the_loop above), through lib/decide.mjs.
+  segregation_of_duties:
+    roles:
+      - id: maker
+        description: Drafts changes to the ideal on a proposal branch
+        permissions: [create, submit]
+      - id: checker
+        description: Reviews drafted changes for fairness
+        permissions: [review]
+    conflicts:
+      - [maker, checker]
+    assignments:
+      curator: [maker]
+      fairness: [checker]
+    handoffs:
+      - action: change_ideal
+        required_roles: [maker, checker]
+        approval_required: true
+    # Both agents work on the same repo on purpose: git is the hand-off
+    # between them. Each agent's tools and hooks keep their writes apart
+    # (proposal branches vs. notes) rather than separate state.
+    isolation:
+      state: shared
+      credentials: shared
+    enforcement: strict

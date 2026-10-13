@@ -1,0 +1,67 @@
+name: propose_change
+description: >-
+  Propose one change to the ideal employee: add a trait, modify one, or remove
+  one. It is committed to this source's proposal branch, never to the
+  approved ideal, and a human reviews it. Call once per change, up to three
+  per source.
+input_schema:
+  type: object
+  properties:
+    source_id:
+      type: string
+      description: Id of the source, exactly as given in the task (e.g. reject-2026-10-backend-07).
+    source_type:
+      type: string
+      enum: [hire, reject, exit]
+      description: hire and reject are a candidate's interview loop (the interviewers' reviews); exit is an employee's exit notes.
+    change:
+      type: string
+      enum: [add, modify, remove]
+    trait:
+      type: string
+      description: Slug of the existing trait to modify or remove. Omit for add.
+    title:
+      type: string
+      description: Short name for the behaviour. Required for add. For modify, retitles the trait; the slug stays the same.
+    summary:
+      type: string
+      description: One line, under 140 characters, shown in the index. Required for add.
+    meaning:
+      type: string
+      description: One first-person paragraph — what I do and why it matters here. Required for add.
+    signals:
+      type: array
+      description: 1–5 observable behaviours ("You'll see it when…"). Required for add. For modify, replaces the whole list.
+      items:
+        type: string
+    not:
+      type: array
+      description: 0–3 common misreadings ("It isn't…"). For modify, replaces the whole list.
+      items:
+        type: string
+    rationale:
+      type: string
+      description: Why this should change what great looks like here, beyond this one person. Two or three sentences.
+    evidence:
+      type: array
+      description: >-
+        One to three verbatim quotes from the reviews, each with the label of
+        whoever wrote it. A change from a reject needs quotes from at least
+        two different interviewers.
+      items:
+        type: object
+        properties:
+          from:
+            type: string
+            description: Reviewer label exactly as given, e.g. "Interviewer 2 (system design)" or "Exit notes".
+          quote:
+            type: string
+            description: Verbatim words from that review, under 280 characters.
+        required: [from, quote]
+  required: [source_id, source_type, change, rationale, evidence]
+implementation:
+  script: propose_change.mjs
+  runtime: node
+annotations:
+  read_only: false
+  requires_confirmation: false

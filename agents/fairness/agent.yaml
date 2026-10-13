@@ -1,0 +1,19 @@
+spec_version: "0.1.0"
+name: fairness
+version: 0.1.0
+description: >-
+  Reviews each proposed change to the ideal employee for demographic proxies
+  and exclusionary language, and attaches its verdict to the commit as a git
+  note. Advises the human; never approves or rejects.
+
+model:
+  preferred: anthropic:claude-sonnet-4-5-20250929
+  fallback: []
+  constraints:
+    temperature: 0
+
+tools: [read_proposal, record_review]
+skills: [proxy-detection]
+
+runtime:
+  max_turns: 10

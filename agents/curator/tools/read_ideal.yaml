@@ -1,0 +1,16 @@
+name: read_ideal
+description: >-
+  Read the current ideal employee: every trait in full (slug, title, summary,
+  meaning, signals, misreadings), plus the rules. Call this before proposing
+  anything. An empty trait list means nobody has explored the ideal yet.
+input_schema:
+  type: object
+  properties:
+    ref:
+      type: string
+      description: Git ref to read the ideal at. Defaults to main, the approved ideal.
+implementation:
+  script: read_ideal.mjs
+  runtime: node
+annotations:
+  read_only: true

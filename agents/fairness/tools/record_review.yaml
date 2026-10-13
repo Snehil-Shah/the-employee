@@ -1,0 +1,39 @@
+name: record_review
+description: >-
+  Record the fairness verdict for one proposed change. It is attached to the
+  commit as a git note, so the commit itself is unchanged. Call exactly once
+  per commit.
+input_schema:
+  type: object
+  properties:
+    commit:
+      type: string
+      description: Commit id from read_proposal.
+    verdict:
+      type: string
+      enum: [clear, flagged]
+    summary:
+      type: string
+      description: One or two sentences for the human reviewer.
+    concerns:
+      type: array
+      description: Required when flagged. One entry per problematic phrase.
+      items:
+        type: object
+        properties:
+          term:
+            type: string
+            description: The exact words in the proposed trait text.
+          why:
+            type: string
+            description: Who it would exclude, and why.
+          suggestion:
+            type: string
+            description: Rewording that keeps the behaviour.
+        required: [term, why, suggestion]
+  required: [commit, verdict, summary]
+implementation:
+  script: record_review.mjs
+  runtime: node
+annotations:
+  read_only: false

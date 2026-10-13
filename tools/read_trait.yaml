@@ -1,0 +1,16 @@
+name: read_trait
+description: >-
+  Read the full definition of one of my traits: what it means, how you'd see
+  it, and what it isn't. The index in my soul lists the slugs.
+input_schema:
+  type: object
+  properties:
+    trait:
+      type: string
+      description: Trait slug from the index, e.g. writes-things-down.
+  required: [trait]
+implementation:
+  script: read_trait.mjs
+  runtime: node
+annotations:
+  read_only: true

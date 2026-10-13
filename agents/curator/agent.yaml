@@ -1,0 +1,19 @@
+spec_version: "0.1.0"
+name: curator
+version: 0.1.0
+description: >-
+  Reads the interviewers' reviews of a hired or rejected candidate, or an
+  employee's exit notes, and proposes evidence-backed changes to
+  the ideal employee on a proposal branch. Cannot change the ideal itself.
+
+model:
+  preferred: anthropic:claude-sonnet-4-5-20250929
+  fallback: []
+  constraints:
+    temperature: 0.2
+
+tools: [read_ideal, propose_change]
+skills: [read-reviews]
+
+runtime:
+  max_turns: 12
