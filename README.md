@@ -2,7 +2,7 @@
 
 > Ever-growing encapsulation of an employee at your company that learns with each hire/fire/rejection.
 
-Every company has an idea of what "great" looks like. Usually it lives in a few people's heads and drifts without anyone noticing. `the-employee` turns your ideal employee into an agent you can talk to, one that is **learned, not written** from each HR decision you make.
+Every company has an idea of what "great" looks like. Usually it lives in a few people's heads and drifts without anyone noticing. `the-employee` turns your ideal employee into an agent you can talk to, one that is **learned, not written**, from each HR decision you make.
 
 https://github.com/user-attachments/assets/bdcec6a4-3c4b-4f95-a0a8-2c6dfcace47a
 
