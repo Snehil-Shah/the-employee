@@ -1,4 +1,4 @@
-import { git, repoRoot, MAIN, PROPOSAL_PREFIX, FAIRNESS, FAIRNESS_NOTES_REF } from "../../../lib/git.mjs";
+import { git, repoRoot, withLock, MAIN, PROPOSAL_PREFIX, FAIRNESS, FAIRNESS_NOTES_REF } from "../../../lib/git.mjs";
 import { runTool } from "../../../lib/tool-io.mjs";
 
 await runTool(async ({ commit, verdict, summary, concerns = [] }) => {
@@ -16,11 +16,13 @@ await runTool(async ({ commit, verdict, summary, concerns = [] }) => {
 	}
 
 	const note = { verdict, summary, concerns, reviewed_at: new Date().toISOString() };
-	git(["notes", `--ref=${FAIRNESS_NOTES_REF}`, "add", "-f", "-F", "-", sha], {
-		cwd: root,
-		as: FAIRNESS,
-		input: JSON.stringify(note, null, 2),
-	});
+	withLock(root, () =>
+		git(["notes", `--ref=${FAIRNESS_NOTES_REF}`, "add", "-f", "-F", "-", sha], {
+			cwd: root,
+			as: FAIRNESS,
+			input: JSON.stringify(note, null, 2),
+		}),
+	);
 
 	return { commit: sha.slice(0, 12), verdict };
 });

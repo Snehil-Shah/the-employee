@@ -1,2 +1,4 @@
 read_proposal
 record_review
+# Load its own skills, nothing else.
+read skills/

@@ -1,4 +1,4 @@
-import { git, repoRoot, proposalWorktree, commitsAhead, CURATOR } from "../../../lib/git.mjs";
+import { git, repoRoot, proposalWorktree, commitsAhead, withLock, CURATOR } from "../../../lib/git.mjs";
 import { applyChange } from "../../../lib/ideal.mjs";
 import { runTool } from "../../../lib/tool-io.mjs";
 
@@ -48,43 +48,45 @@ await runTool(async (args) => {
 	const quotes = checkEvidence(source_type, evidence);
 
 	const root = repoRoot();
-	const { branch, dir } = proposalWorktree(root, source_id);
+	return withLock(root, () => {
+		const { branch, dir } = proposalWorktree(root, source_id);
 
-	if (commitsAhead(root, branch).length >= MAX_CHANGES) {
-		throw new Error(`this source already has ${MAX_CHANGES} proposed changes, which is the limit`);
-	}
+		if (commitsAhead(root, branch).length >= MAX_CHANGES) {
+			throw new Error(`this source already has ${MAX_CHANGES} proposed changes, which is the limit`);
+		}
 
-	let slug;
-	try {
-		slug = applyChange(dir, { change, trait, title, summary, meaning, signals, not });
-	} catch (err) {
-		// Leave the worktree clean so the next attempt starts from the branch tip.
-		git(["checkout", "--", "."], { cwd: dir });
-		git(["clean", "-fdq", "--", "traits"], { cwd: dir });
-		throw err;
-	}
+		let slug;
+		try {
+			slug = applyChange(dir, { change, trait, title, summary, meaning, signals, not });
+		} catch (err) {
+			// Leave the worktree clean so the next attempt starts from the branch tip.
+			git(["checkout", "--", "."], { cwd: dir });
+			git(["clean", "-fdq", "--", "traits"], { cwd: dir });
+			throw err;
+		}
 
-	const verb = { add: "Add", modify: "Refine", remove: "Remove" }[change];
-	const subject = `${verb} trait: ${title || slug}`;
+		const verb = { add: "Add", modify: "Refine", remove: "Remove" }[change];
+		const subject = `${verb} trait: ${title || slug}`;
 
-	git(["add", "-A", "--", "traits", "SOUL.md"], { cwd: dir });
-	git(
-		[
-			"commit", "-q", "-m", subject, "-m", oneLine(rationale),
-			"--trailer", `Source: ${source_id}`,
-			"--trailer", `Source-Type: ${source_type}`,
-			"--trailer", `Change: ${change}`,
-			"--trailer", `Trait: ${slug}`,
-			...quotes.flatMap((e) => ["--trailer", `Evidence: ${e.from}: "${e.quote}"`]),
-			"--trailer", "Proposed-By: curator",
-		],
-		{ cwd: dir, as: CURATOR },
-	);
+		git(["add", "-A", "--", "traits", "SOUL.md"], { cwd: dir });
+		git(
+			[
+				"commit", "-q", "-m", subject, "-m", oneLine(rationale),
+				"--trailer", `Source: ${source_id}`,
+				"--trailer", `Source-Type: ${source_type}`,
+				"--trailer", `Change: ${change}`,
+				"--trailer", `Trait: ${slug}`,
+				...quotes.flatMap((e) => ["--trailer", `Evidence: ${e.from}: "${e.quote}"`]),
+				"--trailer", "Proposed-By: curator",
+			],
+			{ cwd: dir, as: CURATOR },
+		);
 
-	return {
-		branch,
-		commit: git(["rev-parse", "--short", "HEAD"], { cwd: dir }),
-		subject,
-		diff: git(["show", "--format=", "HEAD"], { cwd: dir }),
-	};
+		return {
+			branch,
+			commit: git(["rev-parse", "--short", "HEAD"], { cwd: dir }),
+			subject,
+			diff: git(["show", "--format=", "HEAD"], { cwd: dir }),
+		};
+	});
 });

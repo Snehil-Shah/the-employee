@@ -1,2 +1,4 @@
 read_ideal
 propose_change
+# Load its own skills, nothing else.
+read skills/

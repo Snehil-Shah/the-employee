@@ -53,12 +53,14 @@ concentrates, so one person's "no" never reshapes the ideal on its own.
 ## Proposals
 
 - One source gives one branch: `proposal/<source-id>`, cut from `main`.
-- One change gives one commit, with at most three per source, so a reviewer
-  can accept some changes and decline others.
+- One change gives one commit, with at most three per source. The proposal is
+  decided as a whole, like a pull request.
 - Agents write proposals in a worktree under `.proposals/<source-id>`, never
   in the main checkout.
-- Each proposal commit is authored by `Curator (the-employee)
-  <curator@the-employee.local>`. Its message is a subject line (`Add trait:
+- Each proposal commit is authored by the curator: `Curator (the-employee)
+  <curator@the-employee.local>`, unless the host sets `THE_EMPLOYEE_GIT_NAME`
+  and `THE_EMPLOYEE_GIT_EMAIL` (for example, to a GitHub App's bot so GitHub
+  shows the app). Its message is a subject line (`Add trait:
   …`, `Refine trait: …`, `Remove trait: …`) and a rationale paragraph,
   followed by these trailers:
 
@@ -83,15 +85,17 @@ concentrates, so one person's "no" never reshapes the ideal on its own.
 All decisions go through `lib/decide.mjs` (or `bin/decide.mjs` on the command
 line). No agent has a tool that reaches them.
 
-- **Accept a change:** its commit is cherry-picked onto `main`. The curator
-  stays the author and the approver becomes the committer, so the history of
-  any trait file shows who proposed each line and who approved it. Changes can
-  be accepted in any order. If the generated index conflicts, it is
-  regenerated rather than merged.
-- **Decline a change:** leave the commit on its proposal branch. Proposal
-  branches are never deleted, so they serve as a record of the roads not
-  taken.
-- **Undo an accepted change:** revert it on `main`, with a reason.
+- **Accept a proposal:** it is squashed onto `main` as one commit by the
+  approver, titled by the host (for example `HIRED: Alice (Engineering
+  Manager)`), listing its changes and carrying `Source` and `Decision:
+  accepted` trailers. `main` stays a clean list of decisions; each change's
+  rationale and evidence stay in the proposal's own commits on its branch.
+  Proposals can be accepted in any order: a stale branch first catches up with
+  `main` (`catchUp`), with the generated index regenerated rather than merged.
+- **Decline a proposal:** leave its branch unmerged. Proposal branches are
+  never deleted, so they serve as a record of the roads not taken.
+- **Undo an accepted proposal:** revert its commit on `main`, with a reason
+  (`Decision: reverted`).
 
 ## Privacy
 

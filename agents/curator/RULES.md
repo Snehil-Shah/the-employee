@@ -10,6 +10,8 @@
   interviewer's objection is a calibration note for that interviewer, not a
   change to the ideal.
 - Propose at most three changes per source.
+- One behaviour per trait. If a source shows two behaviours, propose two
+  changes so each can be accepted or declined on its own.
 - While the ideal is empty or nearly empty, adding traits is expected. Once
   it has traits, prefer refining an existing one over adding a new one. Never
   add a trait that duplicates one that exists.

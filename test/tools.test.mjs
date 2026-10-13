@@ -5,13 +5,13 @@
 // grows through one proposal.
 import { test, before } from "node:test";
 import assert from "node:assert/strict";
-import { execFileSync, spawnSync } from "node:child_process";
-import { cpSync, mkdtempSync, readFileSync } from "node:fs";
+import { execFileSync, spawnSync, spawn } from "node:child_process";
+import { cpSync, mkdtempSync, readFileSync, readdirSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join, dirname } from "node:path";
 import { fileURLToPath } from "node:url";
 import { parseTrait, renderTrait, writeIndex, EMPTY_INDEX } from "../lib/ideal.mjs";
-import { accept, revert } from "../lib/decide.mjs";
+import { accept, revert, acceptedAs, catchUp } from "../lib/decide.mjs";
 
 const SOURCE = join(dirname(fileURLToPath(import.meta.url)), "..");
 const HEAD_OF_PEOPLE = { name: "Head of People", email: "people@example.com" };
@@ -70,6 +70,9 @@ before(() => {
 		recursive: true,
 		filter: (src) => !/[/\\](\.git|\.proposals|\.gitagent|node_modules)([/\\]|$)/.test(src.slice(SOURCE.length)),
 	});
+	// Start from an unexplored ideal, whatever traits the company's own copy has.
+	for (const f of readdirSync(join(repo, "traits"))) if (f !== "README.md") rmSync(join(repo, "traits", f));
+	writeIndex(repo);
 	git("init", "-q", "-b", "main");
 	git("add", "-A");
 	git("-c", "user.name=Test", "-c", "user.email=test@example.com", "commit", "-q", "-m", "Initial framework");
@@ -173,31 +176,44 @@ test("record_review refuses commits that are already on main", () => {
 	assert.match(r.error, /not a pending proposal commit/);
 });
 
-test("changes can be accepted out of order; the index is regenerated, not merged", () => {
-	const [addWrites, , addAsks] = tool("agents/fairness", "read_proposal.mjs", { source_id: "exit-test-01" }).changes;
+test("a proposal is accepted as a whole, squashed onto main as one commit", () => {
+	const before = git("rev-parse", "main");
+	accept(repo, "exit-test-01", HEAD_OF_PEOPLE, "EXIT: Sam (Staff Engineer)");
 
-	accept(repo, addAsks.commit, HEAD_OF_PEOPLE);
-	accept(repo, addWrites.commit, HEAD_OF_PEOPLE);
-
-	const index = readFileSync(join(repo, "SOUL.md"), "utf-8");
-	assert.match(index, /- \*\*Asks for help early\*\*.*\n- \*\*Writes things down\*\*/);
-	assert.doesNotMatch(index, /None yet/);
+	// One commit on main, by the approver, titled by the host, tied to its source.
+	assert.equal(git("rev-parse", "main~1"), before);
+	assert.equal(git("rev-list", "--parents", "-1", "main").split(" ").length, 2);
+	assert.equal(git("log", "-1", "--format=%an|%s|%(trailers:key=Source,valueonly,separator=)|%(trailers:key=Decision,valueonly,separator=)"), "Head of People|EXIT: Sam (Staff Engineer)|exit-test-01|accepted");
+	assert.match(git("log", "-1", "--format=%b"), /- Add trait: Writes things down/);
+	assert.equal(acceptedAs(repo, "exit-test-01"), git("rev-parse", "main"));
 
 	const trait = tool(".", "read_trait.mjs", { trait: "writes-things-down" });
 	assert.equal(trait.summary, "Writes decisions and their reasons where the next person will find them.");
-	assert.equal(
-		git("log", "-1", "--format=%an|%cn|%(trailers:key=Source,valueonly)", "--", "traits/writes-things-down.md"),
-		"Curator (the-employee)|Head of People|exit-test-01",
-	);
+	assert.throws(() => accept(repo, "exit-test-01", HEAD_OF_PEOPLE), /already accepted/);
 });
 
-test("an accepted change can be reverted", () => {
-	const addAsks = git("log", "--format=%h", "--grep=Add trait: Asks for help early", "main");
-	revert(repo, addAsks, HEAD_OF_PEOPLE, "Over-corrected after one exit.");
+test("a stale proposal catches up with main, then squashes cleanly", () => {
+	assert.equal(catchUp(repo, "reject-test-01", HEAD_OF_PEOPLE), true);
+	assert.equal(git("rev-list", "--count", "proposal/reject-test-01..main"), "0");
+	assert.equal(catchUp(repo, "reject-test-01", HEAD_OF_PEOPLE), false);
 
-	assert.match(tool(".", "read_trait.mjs", { trait: "asks-for-help-early" }).error, /I have: writes-things-down/);
+	accept(repo, "reject-test-01", HEAD_OF_PEOPLE);
+	assert.equal(git("log", "-1", "--format=%s"), "Accept proposal/reject-test-01");
+	const index = readFileSync(join(repo, "SOUL.md"), "utf-8");
+	assert.match(index, /- \*\*Asks for help early\*\*.*\n- \*\*Chooses the simplest thing that works\*\*.*\n- \*\*Writes things down\*\*/);
+	assert.equal(git("status", "--porcelain", "--untracked-files=no"), "");
+});
+
+test("an accepted proposal can be reverted as a whole", () => {
+	revert(repo, "exit-test-01", HEAD_OF_PEOPLE, "Over-corrected after one exit.");
+
+	assert.match(tool(".", "read_trait.mjs", { trait: "writes-things-down" }).error, /I have: chooses-the-simplest-thing-that-works/);
 	assert.doesNotMatch(readFileSync(join(repo, "SOUL.md"), "utf-8"), /Asks for help early/);
-	assert.match(git("log", "-1", "--format=%an|%B"), /^Head of People\|Revert "Add trait: Asks for help early"[\s\S]*Over-corrected/);
+	assert.match(
+		git("log", "-1", "--format=%an|%B"),
+		/^Head of People\|Revert "EXIT: Sam \(Staff Engineer\)"[\s\S]*Over-corrected[\s\S]*Decision: reverted/,
+	);
+	assert.throws(() => revert(repo, "hire-test-01", HEAD_OF_PEOPLE), /isn't accepted/);
 });
 
 test("guards allow only each agent's own tools", () => {
@@ -210,11 +226,40 @@ test("guards allow only each agent's own tools", () => {
 	assert.equal(guard("agents/fairness", "propose_change"), "block");
 });
 
+test("agents may read their own skills and nothing else", () => {
+	const read = (path) => {
+		const cwd = join(repo, "agents", "fairness");
+		const r = spawnSync("sh", [join(cwd, "hooks", "guard.sh")], { cwd, input: JSON.stringify({ tool: "read", args: { path } }), encoding: "utf-8" });
+		return JSON.parse(r.stdout);
+	};
+	assert.equal(read("skills/proxy-detection/SKILL.md").action, "allow");
+	// A path missing its skills/ prefix is pointed inside skills/, not refused.
+	assert.deepEqual(read("proxy-detection/SKILL.md"), { action: "modify", args: { path: "skills/proxy-detection/SKILL.md" } });
+	assert.equal(read("../../RULES.md").action, "block");
+	assert.equal(read("/etc/passwd").action, "block");
+	assert.equal(read(undefined).action, "block");
+});
+
 test("the guard fails closed on input it can't read", () => {
 	const cwd = join(repo, "agents", "curator");
 	const r = spawnSync("sh", [join(cwd, "hooks", "guard.sh")], { cwd, input: "not json", encoding: "utf-8" });
 	assert.equal(r.status, 0);
 	assert.equal(JSON.parse(r.stdout).action, "block");
+});
+
+test("parallel proposals for one source don't race", async () => {
+	const cwd = join(repo, "agents", "curator");
+	const run = (title) =>
+		new Promise((done) => {
+			const child = spawn("node", [join(cwd, "tools", "propose_change.mjs")], { cwd });
+			let err = "";
+			child.stderr.on("data", (d) => (err += d));
+			child.on("close", (code) => done({ code, err }));
+			child.stdin.end(JSON.stringify({ ...writesThingsDown, source_id: "exit-test-parallel", title }));
+		});
+	const results = await Promise.all([run("Parallel one"), run("Parallel two")]);
+	assert.deepEqual(results.map((r) => r.code), [0, 0], results.map((r) => r.err).join("\n"));
+	assert.equal(git("rev-list", "--count", "main..proposal/exit-test-parallel"), "2");
 });
 
 test("a meaning with headings is refused, since it would corrupt the trait file", () => {

@@ -29,7 +29,7 @@ Then:
 
 1. Add your company's non-negotiables below the base rules in `RULES.md`.
 2. Feed the curator interview loops and exit notes (format in `CONVENTIONS.md`).
-3. Review what it proposes and accept or decline each change with `bin/decide.mjs`.
+3. Review each proposal and accept or decline it as a whole with `bin/decide.mjs`.
 
 ## Running it
 
@@ -61,13 +61,13 @@ Reached for the heaviest tool each time; couldn't articulate the trade-off when 
 gitagent --dir agents/fairness -p "Review proposal reject-2026-10-backend-07"
 ```
 
-**Decide.** Look at the proposal, then accept the changes you agree with. Anything you don't accept stays on its branch as a road not taken.
+**Decide.** Look at the proposal, then accept or decline it as a whole. Accepting squashes it onto `main` as one commit; a declined proposal stays on its branch as a road not taken.
 
 ```sh
 git log main..proposal/reject-2026-10-backend-07 -p          # proposed changes, with evidence
 git log main..proposal/reject-2026-10-backend-07 --notes=fairness   # fairness verdicts
-bin/decide.mjs accept <commit>
-bin/decide.mjs revert <commit> "why"                          # undo an accepted change later
+bin/decide.mjs accept reject-2026-10-backend-07
+bin/decide.mjs revert reject-2026-10-backend-07 "why"         # undo an accepted proposal later
 ```
 
 **Run the tests.** They exercise every tool, hook and decision against a throwaway copy of the repo, with no model or API key.
